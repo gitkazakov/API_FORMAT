@@ -71,6 +71,51 @@ namespace API_FORMAT.Controllers
             _context = context;
         }
 
+        // GET /posts
+        [HttpGet]
+        public async Task<IActionResult> GetAllPosts(
+            [FromQuery] int? communityId = null,
+            [FromQuery] int? topicId = null,
+            [FromQuery] int? authorId = null)
+        {
+            var query = _context.Posts.AsQueryable();
+
+            if (communityId.HasValue)
+                query = query.Where(p => p.CommunityId == communityId);
+
+            if (topicId.HasValue)
+                query = query.Where(p => p.TopicId == topicId);
+
+            if (authorId.HasValue)
+                query = query.Where(p => p.AuthorId == authorId);
+
+            var posts = await query
+                .Include(p => p.Comments)
+                .Include(p => p.Likes)
+                .Include(p => p.Community)
+                .Include(p => p.Topic)
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
+
+            return Ok(posts);
+        }
+
+        // GET /posts/{postId}
+        [HttpGet("{postId}")]
+        public async Task<IActionResult> GetPostById(int postId)
+        {
+            var post = await _context.Posts
+                .Include(p => p.Comments)
+                .Include(p => p.Likes)
+                .Include(p => p.Community)
+                .Include(p => p.Topic)
+                .FirstOrDefaultAsync(p => p.Id == postId);
+
+            if (post == null) return NotFound("Post not found.");
+
+            return Ok(post);
+        }
+
         // PUT /posts/{postId}
         [HttpPut("{postId}")]
         public async Task<IActionResult> UpdatePost(int postId, [FromBody] PostUpdateDto postDto)

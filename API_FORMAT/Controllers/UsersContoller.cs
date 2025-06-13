@@ -21,13 +21,13 @@ namespace API_FORMAT.Controllers
         public async Task<IActionResult> Register([FromBody] UserRegisterDto dto)
         {
             if (await _context.Users.AnyAsync(u => u.Login == dto.Login || u.Email == dto.Email))
-                return BadRequest("User with this login or email already exists.");
+                return BadRequest(new { Message = "User with this login or email already exists" });
 
             var user = new User
             {
                 Login = dto.Login,
                 Email = dto.Email,
-                Password = dto.Password, 
+                Password = dto.Password,
                 Phone = dto.Phone,
                 RoleId = 2
             };
@@ -35,18 +35,51 @@ namespace API_FORMAT.Controllers
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetUser), new { id = user.Id }, new { user.Id, user.Login, user.Email, user.Phone });
+            return CreatedAtAction(nameof(GetUser), new { id = user.Id }, new
+            {
+                Message = "Registration successful",
+                User = new
+                {
+                    user.Id,
+                    user.Login,
+                    user.Email,
+                    user.Phone
+                }
+            });
         }
-
         // POST /users/login 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] UserLoginDto dto)
         {
-            var user = await _context.Users.SingleOrDefaultAsync(u => u.Login == dto.Login && u.Password == dto.Password);
-            if (user == null)
-                return Unauthorized("Invalid login or password.");
+            Console.WriteLine($"Login attempt: {dto.Login}");
+            try
+            {
+                if (string.IsNullOrEmpty(dto.Login) || string.IsNullOrEmpty(dto.Password))
+                    return BadRequest(new { Message = "Login and password are required" });
 
-            return Ok(new { Message = "Login successful" });
+                var user = await _context.Users
+                    .SingleOrDefaultAsync(u => u.Login == dto.Login && u.Password == dto.Password);
+
+                if (user == null)
+                    return Unauthorized(new { Message = "Invalid login or password" });
+
+                return Ok(new
+                {
+                    Message = "Login successful",
+                    User = new
+                    {
+                        user.Id,
+                        user.Login,
+                        user.Email,
+                        user.Phone,
+                        user.RoleId
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Internal server error", Details = ex.Message });
+            }
         }
 
         // GET /users/{id}

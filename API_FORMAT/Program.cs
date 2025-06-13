@@ -30,15 +30,10 @@ var app = builder.Build();
 
 app.UseCors("AllowAll");
 
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Home/Error");
-    app.UseHsts();
-}
-
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseAuthorization();
+
 
 app.MapControllers();
 
