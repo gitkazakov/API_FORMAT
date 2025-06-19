@@ -95,6 +95,7 @@ namespace API_FORMAT.Controllers
                 user.Login,
                 user.Email,
                 user.Phone,
+                user.AvatarUrl,
                 RoleId = user.RoleId
             });
         }
@@ -110,6 +111,7 @@ namespace API_FORMAT.Controllers
             user.Phone = dto.Phone ?? user.Phone;
             if (!string.IsNullOrEmpty(dto.Password))
                 user.Password = dto.Password;
+            user.AvatarUrl = dto.AvatarUrl;
 
             await _context.SaveChangesAsync();
 
@@ -166,6 +168,7 @@ namespace API_FORMAT.Controllers
         public string? Email { get; set; }
         public string? Phone { get; set; }
         public string? Password { get; set; }
+        public string? AvatarUrl { get; set; }
     }
 
     public class ChangePasswordDto
@@ -173,4 +176,5 @@ namespace API_FORMAT.Controllers
         public string OldPassword { get; set; } = null!;
         public string NewPassword { get; set; } = null!;
     }
+
 }

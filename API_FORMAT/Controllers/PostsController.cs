@@ -46,7 +46,7 @@ namespace API_FORMAT.Controllers
             {
                 Content = postDto.Content,
                 MediaUrl = postDto.MediaUrl,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc),
                 AuthorId = userId,
                 CommunityId = postDto.CommunityId,
                 TopicId = postDto.TopicId,

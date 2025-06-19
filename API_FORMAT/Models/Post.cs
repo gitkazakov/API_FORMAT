@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace API_FORMAT.Models;
 
@@ -11,6 +12,7 @@ public partial class Post
 
     public string? MediaUrl { get; set; }
 
+    [Column(TypeName = "timestamp with time zone")]
     public DateTime? CreatedAt { get; set; }
 
     public int? CommunityId { get; set; }

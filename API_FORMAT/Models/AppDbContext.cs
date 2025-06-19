@@ -6,6 +6,7 @@ namespace API_FORMAT.Models;
 
 public partial class AppDbContext : DbContext
 {
+   
     public AppDbContext()
     {
     }
@@ -109,6 +110,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<Post>(entity =>
         {
+
             entity.HasKey(e => e.Id).HasName("posts_pkey");
 
             entity.ToTable("posts");
@@ -120,9 +122,10 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.CommunityId).HasColumnName("community_id");
             entity.Property(e => e.Content).HasColumnName("content");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("now()")
-                .HasColumnType("timestamp without time zone")
-                .HasColumnName("created_at");
+    .HasDefaultValueSql("now()")
+    .HasColumnType("timestamp with time zone")  // Измените это
+    .HasColumnName("created_at");
+
             entity.Property(e => e.MediaUrl).HasColumnName("media_url");
             entity.Property(e => e.ShareUrl).HasColumnName("share_url");
             entity.Property(e => e.TopicId).HasColumnName("topic_id");
@@ -215,6 +218,11 @@ public partial class AppDbContext : DbContext
                 .HasMaxLength(20)
                 .HasColumnName("phone");
             entity.Property(e => e.RoleId).HasColumnName("role_id");
+
+            entity.Property(e => e.AvatarUrl)
+        .HasColumnName("avatar_url")  
+        .HasMaxLength(500)           
+        .IsRequired(false);       
 
             entity.HasOne(d => d.Role).WithMany(p => p.Users)
                 .HasForeignKey(d => d.RoleId)
