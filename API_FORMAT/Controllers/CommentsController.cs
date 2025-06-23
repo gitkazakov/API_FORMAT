@@ -56,41 +56,71 @@ namespace API_FORMAT.Controllers
             _context = context;
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetPostComments(int postId)
+        {
+            var postExists = await _context.Posts.AnyAsync(p => p.Id == postId);
+            if (!postExists) return NotFound("Post not found.");
+
+            var comments = await _context.Comments
+                .Where(c => c.PostId == postId)
+                .Include(c => c.User) 
+                .OrderByDescending(c => c.CreatedAt)  
+                .Select(c => new
+                {
+                    c.Id,
+                    c.CommentText,
+                    c.CreatedAt,
+                    UserId = c.User.Id,
+                    UserLogin = c.User.Login,
+                    UserAvatarUrl = c.User.AvatarUrl
+                })
+                .ToListAsync();
+
+            return Ok(comments);
+        }
+
+
         // POST /posts/{postId}/comments
         [HttpPost]
         public async Task<IActionResult> CreateComment(int postId, [FromBody] CommentCreateDto dto)
-        {
+        {    
+
             var currentUserId = GetCurrentUserId();
             if (currentUserId == null)
-                return BadRequest("User ID header missing or invalid.");
+                return Unauthorized("User ID header missing or invalid.");
+   
+            if (string.IsNullOrWhiteSpace(dto.CommentText))
+                return BadRequest("Comment text is required");
 
             var postExists = await _context.Posts.AnyAsync(p => p.Id == postId);
             if (!postExists)
-                return NotFound("Post not found.");
+                return NotFound("Post not found");
 
             var comment = new Comment
             {
                 PostId = postId,
-                UserId = currentUserId.Value, 
+                UserId = currentUserId.Value,
                 CommentText = dto.CommentText,
-                CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc)
+                CreatedAt = DateTime.Now 
             };
 
             _context.Comments.Add(comment);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(
-                nameof(GetComment),
-                new { commentId = comment.Id },
-                new
-                {
-                    comment.Id,
-                    comment.CommentText,
-                    comment.CreatedAt,
-                    PostId = comment.PostId,
-                    UserId = comment.UserId
-                });
+            var user = await _context.Users.FindAsync(currentUserId.Value);
+
+            return Ok(new
+            {
+                comment.Id,
+                comment.CommentText,
+                comment.CreatedAt,
+                UserLogin = user?.Login,
+                UserAvatarUrl = user?.AvatarUrl
+            });
         }
+
+
 
         // PUT /comments/{commentId}
         [HttpPut("/comments/{commentId}")]
