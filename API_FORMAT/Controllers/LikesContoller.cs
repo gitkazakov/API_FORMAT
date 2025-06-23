@@ -54,75 +54,60 @@ namespace API_FORMAT.Controllers
             _context = context;
         }
 
-        // POST /posts/{postId}/likes
-        [HttpPost]
-        public async Task<IActionResult> AddLike(int postId)
+        // Получить количество лайков поста
+        [HttpGet("count")]
+        public async Task<IActionResult> GetLikesCount(int postId)
         {
-            var currentUserId = GetCurrentUserId();
-            if (currentUserId == null)
-                return BadRequest("User ID header missing or invalid.");
+            var count = await _context.Likes
+                .CountAsync(l => l.PostId == postId);
 
+            return Ok(new { count });
+        }
+
+        // Проверить, лайкнул ли текущий пользователь пост
+        [HttpGet("check/{userId}")]
+        public async Task<IActionResult> CheckUserLike(int postId, int userId)
+        {
+            var hasLike = await _context.Likes
+                .AnyAsync(l => l.PostId == postId && l.UserId == userId);
+
+            return Ok(new { hasLike });
+        }
+
+        // Добавить лайк
+        [HttpPost]
+        public async Task<IActionResult> AddLike(int postId, [FromBody] int userId)
+        {
+            // Проверяем, существует ли пост
             var postExists = await _context.Posts.AnyAsync(p => p.Id == postId);
-            if (!postExists)
-                return NotFound("Post not found.");
+            if (!postExists) return NotFound("Post not found");
 
-            var likeExists = await _context.Likes.AnyAsync(l => l.PostId == postId && l.UserId == currentUserId);
-            if (likeExists)
-                return BadRequest("Like already exists.");
+            // Проверяем, не лайкнул ли уже пользователь
+            var alreadyLiked = await _context.Likes
+                .AnyAsync(l => l.PostId == postId && l.UserId == userId);
+            if (alreadyLiked) return BadRequest("User already liked this post");
 
-            var like = new Like
-            {
-                PostId = postId,
-                UserId = currentUserId
-            };
-
+            // Добавляем лайк
+            var like = new Like { PostId = postId, UserId = userId };
             _context.Likes.Add(like);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetLike), new { postId = postId }, like);
+            return Ok();
         }
 
-        // DELETE /posts/{postId}/likes
-        [HttpDelete]
-        public async Task<IActionResult> RemoveLike(int postId)
+        // Удалить лайк
+        [HttpDelete("{userId}")]
+        public async Task<IActionResult> RemoveLike(int postId, int userId)
         {
-            var currentUserId = GetCurrentUserId();
-            if (currentUserId == null)
-                return BadRequest("User ID header missing or invalid.");
+            var like = await _context.Likes
+                .FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
 
-            var like = await _context.Likes.SingleOrDefaultAsync(l => l.PostId == postId && l.UserId == currentUserId);
-            if (like == null)
-                return NotFound("Like not found.");
+            if (like == null) return NotFound("Like not found");
 
             _context.Likes.Remove(like);
             await _context.SaveChangesAsync();
 
-            return NoContent();
-        }
-
-
-        [NonAction]
-        public async Task<IActionResult> GetLike(int postId)
-        {
-            var currentUserId = GetCurrentUserId();
-            if (currentUserId == null)
-                return BadRequest();
-
-            var like = await _context.Likes.SingleOrDefaultAsync(l => l.PostId == postId && l.UserId == currentUserId);
-            if (like == null)
-                return NotFound();
-
-            return Ok(like);
-        }
-
-        private int? GetCurrentUserId()
-        {
-            if (Request.Headers.TryGetValue("X-User-Id", out var userIdValues))
-            {
-                if (int.TryParse(userIdValues.FirstOrDefault(), out int userId))
-                    return userId;
-            }
-            return null;
+            return Ok();
         }
     }
 }

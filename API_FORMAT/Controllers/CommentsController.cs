@@ -80,6 +80,18 @@ namespace API_FORMAT.Controllers
             return Ok(comments);
         }
 
+        [HttpGet("count")]
+        public async Task<IActionResult> GetPostCommentsCount(int postId)
+        {
+            var postExists = await _context.Posts.AnyAsync(p => p.Id == postId);
+            if (!postExists) return NotFound("Post not found.");
+
+            var count = await _context.Comments
+                .CountAsync(c => c.PostId == postId);
+
+            return Ok(new { Count = count });
+        }
+
 
         // POST /posts/{postId}/comments
         [HttpPost]
