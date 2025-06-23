@@ -71,15 +71,25 @@ namespace API_FORMAT.Controllers
             var comment = new Comment
             {
                 PostId = postId,
-                UserId = currentUserId,
+                UserId = currentUserId.Value, 
                 CommentText = dto.CommentText,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc)
             };
 
             _context.Comments.Add(comment);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetComment), new { commentId = comment.Id }, comment);
+            return CreatedAtAction(
+                nameof(GetComment),
+                new { commentId = comment.Id },
+                new
+                {
+                    comment.Id,
+                    comment.CommentText,
+                    comment.CreatedAt,
+                    PostId = comment.PostId,
+                    UserId = comment.UserId
+                });
         }
 
         // PUT /comments/{commentId}

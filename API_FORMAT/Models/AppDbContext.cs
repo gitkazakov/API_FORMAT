@@ -123,7 +123,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Content).HasColumnName("content");
             entity.Property(e => e.CreatedAt)
     .HasDefaultValueSql("now()")
-    .HasColumnType("timestamp with time zone")  // Измените это
+    .HasColumnType("timestamp with time zone") 
     .HasColumnName("created_at");
 
             entity.Property(e => e.MediaUrl).HasColumnName("media_url");

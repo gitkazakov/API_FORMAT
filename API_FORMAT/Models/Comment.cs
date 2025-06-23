@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace API_FORMAT.Models;
 
@@ -13,6 +14,7 @@ public partial class Comment
 
     public string CommentText { get; set; } = null!;
 
+    [Column(TypeName = "timestamp with time zone")]
     public DateTime? CreatedAt { get; set; }
 
     public virtual Post? Post { get; set; }
