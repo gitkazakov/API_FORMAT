@@ -37,7 +37,8 @@ namespace API_FORMAT.Controllers
 
         // POST /users/{userId}/posts
         [HttpPost]
-        public async Task<IActionResult> CreatePost(int userId, [FromBody] PostCreateDto postDto)
+        [Consumes("multipart/form-data")] // Явно указываем тип контента
+        public async Task<IActionResult> CreatePost(int userId, [FromForm] PostCreateDto postDto)
         {
             var userExists = await _context.Users.AnyAsync(u => u.Id == userId);
             if (!userExists) return NotFound("User not found.");
@@ -45,13 +46,47 @@ namespace API_FORMAT.Controllers
             var post = new Post
             {
                 Content = postDto.Content,
-                MediaUrl = postDto.MediaUrl,
                 CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc),
                 AuthorId = userId,
                 CommunityId = postDto.CommunityId,
                 TopicId = postDto.TopicId,
                 ShareUrl = postDto.ShareUrl
             };
+
+ 
+            if (postDto.ImageFile != null && postDto.ImageFile.Length > 0)
+            {
+  
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+                var extension = Path.GetExtension(postDto.ImageFile.FileName).ToLowerInvariant();
+
+                if (!allowedExtensions.Contains(extension))
+                {
+                    return BadRequest("Недопустимый формат изображения. Разрешены только JPG, JPEG, PNG и GIF.");
+                }
+
+                if (postDto.ImageFile.Length > 5 * 1024 * 1024)
+                {
+                    return BadRequest("Размер изображения не должен превышать 5MB.");
+                }
+
+
+                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+                if (!Directory.Exists(uploadsFolder))
+                {
+                    Directory.CreateDirectory(uploadsFolder);
+                }
+
+                var uniqueFileName = Guid.NewGuid().ToString() + "_" + postDto.ImageFile.FileName;
+                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    await postDto.ImageFile.CopyToAsync(fileStream);
+                }
+
+                post.MediaUrl = $"/uploads/{uniqueFileName}";
+            }
 
             _context.Posts.Add(post);
             await _context.SaveChangesAsync();
@@ -72,6 +107,61 @@ namespace API_FORMAT.Controllers
         }
 
         // GET /posts
+        //[HttpGet]
+        //public async Task<IActionResult> GetAllPosts(
+        //    [FromQuery] int? communityId = null,
+        //    [FromQuery] int? topicId = null,
+        //    [FromQuery] int? authorId = null)
+        //{
+        //    var query = _context.Posts.AsQueryable();
+
+        //    if (communityId.HasValue)
+        //        query = query.Where(p => p.CommunityId == communityId);
+
+        //    if (topicId.HasValue)
+        //        query = query.Where(p => p.TopicId == topicId);
+
+        //    if (authorId.HasValue)
+        //        query = query.Where(p => p.AuthorId == authorId);
+
+        //    var posts = await query
+        //        .Include(p => p.Comments)
+        //        .Include(p => p.Likes)
+        //        .Include(p => p.Community)
+        //        .Include(p => p.Topic)
+        //        .OrderByDescending(p => p.CreatedAt)
+        //        .ToListAsync();
+
+        //    return Ok(posts);
+        //}
+
+        // GET /posts/{postId}
+        [HttpGet("{postId}")]
+        public async Task<IActionResult> GetPostById(int postId)
+        {
+            var post = await _context.Posts
+                .Include(p => p.Comments)
+                .Include(p => p.Likes)
+                .Include(p => p.Community)
+                .Include(p => p.Topic)
+                .Select(p => new {
+                    p.Id,
+                    p.Content,
+                    p.MediaUrl,
+                    p.CreatedAt,
+                    p.AuthorId,
+                    Community = p.Community != null ? new { p.Community.Id, p.Community.Name } : null,
+                    Topic = p.Topic != null ? new { p.Topic.Id, p.Topic.Name } : null,
+                    CommentsCount = p.Comments.Count,
+                    LikesCount = p.Likes.Count
+                })
+                .FirstOrDefaultAsync(p => p.Id == postId);
+
+            if (post == null) return NotFound("Post not found.");
+
+            return Ok(post);
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetAllPosts(
             [FromQuery] int? communityId = null,
@@ -94,26 +184,21 @@ namespace API_FORMAT.Controllers
                 .Include(p => p.Likes)
                 .Include(p => p.Community)
                 .Include(p => p.Topic)
+                .Select(p => new {
+                    p.Id,
+                    p.Content,
+                    p.MediaUrl,
+                    p.CreatedAt,
+                    p.AuthorId,
+                    Community = p.Community != null ? new { p.Community.Id, p.Community.Name } : null,
+                    Topic = p.Topic != null ? new { p.Topic.Id, p.Topic.Name } : null,
+                    CommentsCount = p.Comments.Count,
+                    LikesCount = p.Likes.Count
+                })
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
 
             return Ok(posts);
-        }
-
-        // GET /posts/{postId}
-        [HttpGet("{postId}")]
-        public async Task<IActionResult> GetPostById(int postId)
-        {
-            var post = await _context.Posts
-                .Include(p => p.Comments)
-                .Include(p => p.Likes)
-                .Include(p => p.Community)
-                .Include(p => p.Topic)
-                .FirstOrDefaultAsync(p => p.Id == postId);
-
-            if (post == null) return NotFound("Post not found.");
-
-            return Ok(post);
         }
 
         // PUT /posts/{postId}
@@ -166,14 +251,20 @@ namespace API_FORMAT.Controllers
         }
     }
 
+
     public class PostCreateDto
     {
         public string Content { get; set; } = null!;
-        public string? MediaUrl { get; set; }
+
+        [FromForm(Name = "ImageFile")]
+        public IFormFile? ImageFile { get; set; }
+
         public int? CommunityId { get; set; }
         public int? TopicId { get; set; }
         public string? ShareUrl { get; set; }
     }
+
+
 
     public class PostUpdateDto
     {
